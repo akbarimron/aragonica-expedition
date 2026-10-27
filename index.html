@@ -1,0 +1,1526 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aragonica Expedition | Simulasi Kimia Maritim & Telemetri IoT ESP32</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    @font-face {
+      font-family: 'PoppinsLocal';
+      src: url('../lampiran_assets/fonts/Poppins-Regular.ttf') format('truetype');
+      font-weight: 400;
+    }
+    @font-face {
+      font-family: 'PoppinsLocal';
+      src: url('../lampiran_assets/fonts/Poppins-Medium.ttf') format('truetype');
+      font-weight: 500;
+    }
+    @font-face {
+      font-family: 'PoppinsLocal';
+      src: url('../lampiran_assets/fonts/Poppins-SemiBold.ttf') format('truetype');
+      font-weight: 600;
+    }
+    @font-face {
+      font-family: 'PoppinsLocal';
+      src: url('../lampiran_assets/fonts/Poppins-Bold.ttf') format('truetype');
+      font-weight: 700;
+    }
+
+    :root {
+      /* Anti-Slop Palette: Warm Obsidian, Limestone Alabaster, Terracotta Coral, Kelp Emerald, Warm Ochre (Zero Blue/Cyan, Zero Borders!) */
+      --bg-charcoal: #181614;
+      --surface-dark: rgba(28, 25, 23, 0.92);
+      --surface-elevated: #272421;
+      --surface-light: #F5F2EB;
+      --surface-white: #FFFFFF;
+      --text-primary: #FAF8F5;
+      --text-muted: #A8A29E;
+      --text-ink: #1C1917;
+      --text-ink-muted: #57534E;
+      --accent-coral: #D95D39;
+      --accent-emerald: #16A34A;
+      --accent-ochre: #D97706;
+      --accent-danger: #DC2626;
+      --shadow-soft: 0 18px 42px rgba(12, 10, 9, 0.34);
+      --shadow-card: 0 10px 28px rgba(28, 25, 23, 0.10);
+      --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'PoppinsLocal', 'Poppins', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: var(--bg-charcoal);
+      color: var(--text-primary);
+      user-select: none;
+    }
+
+    /* Fullscreen Interactive Canvas */
+    #simCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      display: block;
+    }
+
+    /* Main UI Layer */
+    .ui-shell {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 24px 32px;
+      pointer-events: none;
+    }
+
+    .interactive {
+      pointer-events: auto;
+    }
+
+    /* Top Navigation & Telemetry Header (Borderless Elevated Pill) */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .brand-pill {
+      background: var(--surface-dark);
+      padding: 14px 24px;
+      border-radius: 18px;
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: var(--accent-coral);
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 18px;
+      color: #FFF;
+    }
+
+    .brand-title {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+    }
+
+    .brand-sub {
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+
+    /* Phase Switcher Tabs (Borderless) */
+    .phase-nav {
+      background: var(--surface-dark);
+      padding: 8px;
+      border-radius: 18px;
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      gap: 6px;
+    }
+
+    .phase-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 220ms var(--ease-out-expo), color 220ms var(--ease-out-expo), transform 180ms var(--ease-spring);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .phase-btn:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .phase-btn.active {
+      background: var(--accent-coral);
+      color: #FFFFFF;
+      font-weight: 600;
+    }
+
+    .phase-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(28, 25, 23, 0.28);
+      display: inline-grid;
+      place-items: center;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* Hardware ESP-NOW Status Pill */
+    .hw-status {
+      background: var(--surface-dark);
+      padding: 12px 20px;
+      border-radius: 18px;
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+    }
+
+    .hw-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .hw-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .serial-btn {
+      border: none;
+      background: var(--surface-elevated);
+      color: var(--text-primary);
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 180ms ease;
+    }
+
+    .serial-btn:hover {
+      background: var(--accent-emerald);
+    }
+
+    /* Middle Content Area */
+    .stage-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 390px 1fr 410px;
+      gap: 24px;
+      align-items: center;
+      margin: 18px 0;
+    }
+
+    /* Borderless Elevated Cards */
+    .panel-card {
+      background: var(--surface-dark);
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      transition: transform 320ms var(--ease-out-expo), opacity 280ms var(--ease-out-expo);
+    }
+
+    .panel-card.light-mode {
+      background: var(--surface-light);
+      color: var(--text-ink);
+    }
+
+    .tag-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      align-self: flex-start;
+      padding: 5px 12px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      background: var(--accent-coral);
+      color: #FFF;
+    }
+
+    .tag-pill.emerald { background: var(--accent-emerald); }
+    .tag-pill.ochre   { background: var(--accent-ochre); }
+
+    .card-h2 {
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.28;
+    }
+
+    .card-desc {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+
+    .light-mode .card-desc {
+      color: var(--text-ink-muted);
+    }
+
+    /* Metric Grid inside Panel (Borderless Surface Contrast) */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .metric-box {
+      background: var(--surface-elevated);
+      padding: 14px 16px;
+      border-radius: 14px;
+    }
+
+    .light-mode .metric-box {
+      background: var(--surface-white);
+      box-shadow: var(--shadow-card);
+    }
+
+    .metric-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .light-mode .metric-label {
+      color: var(--text-ink-muted);
+    }
+
+    .metric-val {
+      font-size: 21px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .light-mode .metric-val {
+      color: var(--text-ink);
+    }
+
+    .metric-val.coral   { color: var(--accent-coral); }
+    .metric-val.emerald { color: var(--accent-emerald); }
+    .metric-val.ochre   { color: var(--accent-ochre); }
+
+    .metric-unit {
+      font-size: 12px;
+      font-weight: 500;
+      opacity: 0.8;
+    }
+
+    /* Formula Block (Borderless) */
+    .formula-block {
+      background: var(--surface-elevated);
+      padding: 14px 18px;
+      border-radius: 14px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .light-mode .formula-block {
+      background: var(--surface-white);
+      color: var(--text-ink);
+      box-shadow: var(--shadow-card);
+    }
+
+    .formula-caption {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+
+    .light-mode .formula-caption {
+      color: var(--text-ink-muted);
+    }
+
+    /* Interactive Controls & Sliders */
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .control-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 8px;
+      border-radius: 99px;
+      background: var(--surface-elevated);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .light-mode input[type="range"] {
+      background: #E2DDD3;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--accent-coral);
+      cursor: pointer;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .action-btn {
+      flex: 1;
+      border: none;
+      padding: 12px 16px;
+      border-radius: 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 180ms var(--ease-spring), filter 180ms ease;
+      background: var(--accent-coral);
+      color: #FFFFFF;
+    }
+
+    .action-btn.emerald { background: var(--accent-emerald); }
+    .action-btn.ochre   { background: var(--accent-ochre); }
+    .action-btn.secondary {
+      background: var(--surface-elevated);
+      color: var(--text-primary);
+    }
+    .light-mode .action-btn.secondary {
+      background: #E5E0D5;
+      color: var(--text-ink);
+    }
+
+    .action-btn:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.06);
+    }
+
+    /* Bottom Physical Controller Telemetry Bar (Borderless) */
+    .bottom-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .controller-strip {
+      background: var(--surface-dark);
+      padding: 14px 24px;
+      border-radius: 18px;
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .key-map {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .key-badge {
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #FFF;
+      background: var(--surface-elevated);
+    }
+
+    .key-badge.coral   { background: var(--accent-coral); }
+    .key-badge.emerald { background: var(--accent-emerald); }
+    .key-badge.ochre   { background: var(--accent-ochre); }
+
+    .pedagogy-pill {
+      background: var(--surface-dark);
+      padding: 14px 24px;
+      border-radius: 18px;
+      box-shadow: var(--shadow-soft);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .pedagogy-pill strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    /* Blueprint & Hardware Prototype Drawer Modal */
+    .proto-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(18, 16, 14, 0.88);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow-y: auto;
+    }
+    .proto-modal.open {
+      display: flex;
+    }
+    .proto-box {
+      background: var(--surface-light);
+      color: var(--text-ink);
+      width: 100%;
+      max-width: 1120px;
+      max-height: 90vh;
+      overflow-y: auto;
+      border-radius: 26px;
+      padding: 28px;
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .proto-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .proto-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 18px;
+    }
+    .proto-item {
+      background: var(--surface-white);
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .proto-item img {
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+      display: block;
+    }
+    .proto-item h4 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-ink);
+    }
+    .proto-item p {
+      font-size: 12px;
+      color: var(--text-ink-muted);
+      line-height: 1.5;
+    }
+
+    /* Mobile & Tablet Responsive Reflow (For Smartphone QR Scan!) */
+    @media (max-width: 1100px) {
+      body {
+        overflow-y: auto;
+        height: auto;
+        min-height: 100vh;
+      }
+      .ui-shell {
+        height: auto;
+        min-height: 100vh;
+        padding: 14px;
+        gap: 14px;
+      }
+      .top-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+      }
+      .phase-nav {
+        overflow-x: auto;
+        white-space: nowrap;
+        padding: 6px;
+      }
+      .phase-btn {
+        min-height: 44px;
+        flex-shrink: 0;
+      }
+      .stage-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        margin: 8px 0;
+      }
+      #centerOverlay {
+        height: 310px;
+      }
+      .bottom-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+      }
+      .controller-strip {
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="simCanvas"></canvas>
+
+  <div class="ui-shell">
+    <!-- TOP BAR -->
+    <header class="top-bar interactive">
+      <div class="brand-pill">
+        <div class="brand-mark">AE</div>
+        <div>
+          <div class="brand-title">Aragonica Expedition</div>
+          <div class="brand-sub">Laboratorium Ekologi & Kesetimbangan Kimia Karang Kepri</div>
+        </div>
+      </div>
+
+      <nav class="phase-nav" aria-label="Fase Pembelajaran">
+        <button class="phase-btn active" onclick="setPhase(1)" id="tab-1">
+          <span class="phase-num">1</span> Navigasi Kapal
+        </button>
+        <button class="phase-btn" onclick="setPhase(2)" id="tab-2">
+          <span class="phase-num">2</span> Selam & Pemindai
+        </button>
+        <button class="phase-btn" onclick="setPhase(3)" id="tab-3">
+          <span class="phase-num">3</span> Observasi Pesisir
+        </button>
+        <button class="phase-btn" onclick="setPhase(4)" id="tab-4">
+          <span class="phase-num">4</span> Tablet Lab Kimia
+        </button>
+        <button class="phase-btn" onclick="setPhase(5)" id="tab-5">
+          <span class="phase-num">5</span> Restorasi Biorock
+        </button>
+      </nav>
+
+      <div class="hw-status">
+        <div class="status-dot"></div>
+        <div>
+          <div class="hw-label" id="hwStatusText">ESP-NOW Aktif (Tanpa WiFi)</div>
+          <div class="hw-meta" id="hwMetaText">Sensor pH-4502C: 7.35 | Latensi 4 ms</div>
+        </div>
+        <button class="serial-btn" onclick="toggleProtoModal(true)">Blueprint 3D</button>
+        <button class="serial-btn" onclick="connectWebSerial()">Tautkan USB</button>
+      </div>
+    </header>
+
+    <!-- MIDDLE STAGE GRID -->
+    <main class="stage-grid">
+      <!-- LEFT CONTEXT & OBJECTIVE PANEL -->
+      <section class="panel-card interactive" id="leftPanel">
+        <!-- Dynamically populated per phase -->
+      </section>
+
+      <!-- CENTER VIEWPORT (Canvas shows through cleanly) -->
+      <div id="centerOverlay" style="pointer-events: none;"></div>
+
+      <!-- RIGHT TELEMETRY & CHEMISTRY CONTROLS PANEL -->
+      <section class="panel-card interactive" id="rightPanel">
+        <!-- Dynamically populated per phase -->
+      </section>
+    </main>
+
+    <!-- BOTTOM CONTROLLER & PEDAGOGY BAR -->
+    <footer class="bottom-bar interactive">
+      <div class="controller-strip">
+        <div class="key-map">
+          <span class="key-badge coral">Tombol A</span>
+          <span>Pindai Kimia Karang</span>
+        </div>
+        <div class="key-map">
+          <span class="key-badge emerald">Tombol B</span>
+          <span>Ambil Sampel & Tanam Lamun</span>
+        </div>
+        <div class="key-map">
+          <span class="key-badge ochre">Kenop Putar</span>
+          <span>Voltase Biorock (1.2V - 1.8V)</span>
+        </div>
+        <div class="key-map">
+          <span class="key-badge">Joystick L/R</span>
+          <span>Kemudi & Orbit Molekul 3D</span>
+        </div>
+      </div>
+
+      <div class="pedagogy-pill" id="pedagogyNote">
+        <strong>Kompetensi Kimia Fase F:</strong> Kelarutan Garam Sukar Larut (Ksp) & Pergeseran Kesetimbangan Le Chatelier
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let W = window.innerWidth;
+    let H = window.innerHeight;
+    function resize() {
+      W = window.innerWidth;
+      H = window.innerHeight;
+      canvas.width = W;
+      canvas.height = H;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // State model for the 5 phases
+    const state = {
+      phase: 1,
+      time: 0,
+      // Phase 1: Ship & Anchoring
+      shipX: 0.48,
+      shipHeading: -12,
+      anchorMode: 'buoy', // 'buoy' (+50 Eco) or 'coral' (-100 Damage)
+      ecoScore: 150,
+      seabedDepth: 6.4,
+      // Phase 2: 3D Diving & Chemical Scanner
+      scanActive: true,
+      waterSamples: 3,
+      seawaterPH: 7.35,
+      caConc: 10.2,
+      co3Conc: 58,
+      omegaArag: 0.82,
+      // Phase 3: Coastal Observation & Henry's Law
+      pCO2: 560, // ppm atmospheric near harbor
+      henryAqCO2: 19.2, // uM dissolved CO2
+      sourceTag: 'Knalpot Kapal Diesel & Genset Dermaga',
+      // Phase 4: Tablet Lab Le Chatelier
+      labCO2Slider: 580,
+      labPH: 7.35,
+      qspValue: 0.59,
+      kspValue: 0.72,
+      // Phase 5 & 6: Seagrass & Biorock Restoration + 6-Month Time-Lapse
+      biorockVoltage: 1.48, // V DC (1.2 - 1.8V optimal)
+      seagrassPlots: 12,
+      timelapseMonth: 6, // 0 to 6 months
+      restoredPH: 8.12,
+      reefHealth: 94
+    };
+
+    // Parse ?phase=1..5 from URL for automated screenshot capture
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('phase')) {
+      const p = parseInt(params.get('phase'), 10);
+      if (p >= 1 && p <= 5) state.phase = p;
+    }
+
+    // Sub-microscopic particles for Phase 4 & 5
+    const particles = [];
+    const types = ['CO2', 'H+', 'HCO3-', 'CO32-', 'Ca2+'];
+    for (let i = 0; i < 48; i++) {
+      particles.push({
+        type: types[i % types.length],
+        x: Math.random(),
+        y: Math.random(),
+        vx: (Math.random() - 0.5) * 0.0012,
+        vy: (Math.random() - 0.5) * 0.0012,
+        r: 12 + (i % 3) * 3
+      });
+    }
+
+    function setPhase(p) {
+      state.phase = p;
+      for (let i = 1; i <= 5; i++) {
+        const btn = document.getElementById('tab-' + i);
+        if (btn) btn.classList.toggle('active', i === p);
+      }
+      renderPanels();
+    }
+
+    function renderPanels() {
+      const left = document.getElementById('leftPanel');
+      const right = document.getElementById('rightPanel');
+      const ped = document.getElementById('pedagogyNote');
+      const hwMeta = document.getElementById('hwMetaText');
+
+      left.classList.toggle('light-mode', state.phase === 4);
+      right.classList.toggle('light-mode', state.phase === 4);
+
+      if (state.phase === 1) {
+        hwMeta.textContent = `Joystick L: Kemudi Aktif | Skor Ekologi: +${state.ecoScore} Poin`;
+        ped.innerHTML = `<strong>Fase 1 (Dilema Jangkar):</strong> Mencegah kerusakan mekanis kerangka aragonit CaCO3 sebelum observasi kimia.`;
+        left.innerHTML = `
+          <span class="tag-pill">FASE 1 · NAVIGASI KAPAL RISET</span>
+          <h2 class="card-h2">Kemudi KM Maritim I & Dilema Penambatan Jangkar</h2>
+          <p class="card-desc">
+            Arahkan kapal riset menuju titik pengamatan terumbu karang Pulau Penyengat. Gunakan sonar kedalaman untuk menambatkan kapal pada <strong>Pelampung Tambat (Eco-Mooring Buoy)</strong> atau zona pasir tanpa menghancurkan koloni karang keras.
+          </p>
+          <div class="metric-grid">
+            <div class="metric-box">
+              <div class="metric-label">Kedalaman Sonar</div>
+              <div class="metric-val">${state.seabedDepth.toFixed(1)} <span class="metric-unit">m</span></div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">Skor Konservasi</div>
+              <div class="metric-val ${state.anchorMode === 'buoy' ? 'emerald' : 'coral'}">${state.anchorMode === 'buoy' ? '+150' : '-100'} <span class="metric-unit">poin</span></div>
+            </div>
+          </div>
+          <div class="formula-block">
+            <div>Status Dasar Laut: ${state.anchorMode === 'buoy' ? 'Zona Pasir & Pelampung Tambat Aman' : 'Bahaya! Rantai Jangkar Menggerus CaCO3(s)'}</div>
+            <div class="formula-caption">Kerusakan fisik mematahkan struktur cabang Acropora yang membutuhkan waktu tumbuh 5 hingga 10 tahun.</div>
+          </div>
+        `;
+        right.innerHTML = `
+          <span class="tag-pill emerald">INSTRUMEN SONAR & KEMUDI ESP32</span>
+          <h2 class="card-h2">Keputusan Penambatan Kapal</h2>
+          <p class="card-desc">
+            Pilih metode penambatan menggunakan <strong>Tombol X</strong> pada konsol ESP32 atau uji perbandingan dampak ekologis di bawah ini:
+          </p>
+          <div class="btn-row">
+            <button class="action-btn emerald" onclick="state.anchorMode='buoy'; state.ecoScore=150; renderPanels();">
+              Tambat di Pelampung (+50)
+            </button>
+            <button class="action-btn secondary" onclick="state.anchorMode='coral'; state.ecoScore=-100; renderPanels();">
+              Jatuhkan Jangkar (-100)
+            </button>
+          </div>
+          <div class="control-group">
+            <div class="control-header">
+              <span>Haluan Kemudi Kapal (Joystick Kiri VRx)</span>
+              <span>${state.shipHeading}° LU</span>
+            </div>
+            <input type="range" min="-45" max="45" value="${state.shipHeading}" oninput="state.shipHeading=parseInt(this.value); renderPanels();" />
+          </div>
+          <div class="metric-grid">
+            <div class="metric-box">
+              <div class="metric-label">Kecepatan Kapal</div>
+              <div class="metric-val">4.2 <span class="metric-unit">knot</span></div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">Jarak ke Terumbu</div>
+              <div class="metric-val ochre">18.5 <span class="metric-unit">m</span></div>
+            </div>
+          </div>
+        `;
+      } else if (state.phase === 2) {
+        hwMeta.textContent = `Sensor pH-4502C: ${state.seawaterPH.toFixed(2)} (Asam) | Sampel: ${state.waterSamples}/3 Botol`;
+        ped.innerHTML = `<strong>Fase 2 (Penyelaman 3D):</strong> Pemindaian parameter kimia makroskopis karang memutih (Coral Bleaching) & kejenuhan aragonit.`;
+        left.innerHTML = `
+          <span class="tag-pill">FASE 2 · PENYELAMAN 3D & PEMINDAI</span>
+          <h2 class="card-h2">Diagnosis Koloni Karang Memutih (Bleaching)</h2>
+          <p class="card-desc">
+            Arahkan bidikan <strong>Chemical Scanner</strong> pada cabang karang <em>Acropora sp.</em> yang rapuh dan memutih. Tekan pemicu pada konsol ESP32 untuk merekam pH mikro-habitat dan mengambil sampel air laut.
+          </p>
+          <div class="metric-grid">
+            <div class="metric-box">
+              <div class="metric-label">pH Air Laut (Sensor IoT)</div>
+              <div class="metric-val coral">${state.seawaterPH.toFixed(2)} <span class="metric-unit">Asam</span></div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">Kejenuhan Aragonit (Ω)</div>
+              <div class="metric-val ochre">${state.omegaArag.toFixed(2)} <span class="metric-unit">Ω &lt; 1.0</span></div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">Konsentrasi [Ca²⁺]</div>
+              <div class="metric-val">${state.caConc.toFixed(1)} <span class="metric-unit">mM</span></div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">Ion Karbonat [CO₃²⁻]</div>
+              <div class="metric-val coral">${state.co3Conc} <span class="metric-unit">µM (Kritis)</span></div>
+            </div>
+          </div>
+        `;
+        right.innerHTML = `
+          <span class="tag-pill ochre">TELEMETRI SENSOR pH-4502C</span>
+          <h2 class="card-h2">Akuisisi Sampel Air Laut Nyata</h2>
+          <p class="card-desc">
+            Celupkan elektroda kaca sensor pH-4502C ke dalam gelas sampel air laut di meja praktikum atau simulasikan pembacaan pH:
+          </p>
+          <div class="control-group">
+            <div class="control-header">
+              <span>Kalibrasi Pembacaan Sensor pH-4502C</span>
+              <span>pH ${state.seawaterPH.toFixed(2)}</span>
+            </div>
+            <input type="range" min="710" max="820" value="${Math.round(state.seawaterPH * 100)}"
+              oninput="state.seawaterPH = this.value / 100; state.co3Conc = Math.round(40 + (state.seawaterPH - 7.1)*160); state.omegaArag = +(0.55 + (state.seawaterPH - 7.1)*2.4).toFixed(2); renderPanels();" />
+          </div>
+          <div class="btn-row">
+            <button class="action-btn" onclick="state.scanActive=!state.scanActive; renderPanels();">
+              ${state.scanActive ? 'Kunci Bidikan Scanner' : 'Aktifkan Pemindai'}
+            </button>
+            <button class="action-btn emerald" onclick="state.waterSamples = Math.min(5, state.waterSamples + 1); renderPanels();">
+              Ambil Sampel (${state.waterSamples}/5)
+            </button>
+          </div>
+          <div class="formula-block">
+            <div>Indikator Lapangan: Kerangka CaCO₃ Mengalami Pelarutan</div>
+            <div class="formula-caption">Ketika Ω aragonit turun di bawah 1.0, laju pelarutan kerangka kapur melampaui laju kalsifikasi polip karang.</div>
+          </div>
+        `;
+      } else if (state.phase === 3) {
+        hwMeta.textContent = `Tekanan Parsial CO2: ${state.pCO2} ppm | Terlarut: ${state.henryAqCO2.toFixed(1)} µM`;
+        ped.innerHTML = `<strong>Fase 3 (Hukum Henry):</strong> Kelarutan gas CO₂ di permukaan laut berbanding lurus dengan tekanan parsial CO₂ di atmosfer pesisir.`;
+        left.innerHTML = `
+          <span class="tag-pill ochre">FASE 3 · OBSERVASI PESISIR & HUKUM HENRY</span>
+          <h2 class="card-h2">Investigasi Emisi Karbon Pelabuhan & Deforestasi Mangrove</h2>
+          <p class="card-desc">
+            Amati aktivitas di garis pantai di atas lokasi terumbu karang. Asap knalpot kapal diesel, genset pelabuhan, dan penebangan hutan bakau (mangrove) meningkatkan tekanan parsial gas CO₂ di udara pesisir.
+          </p>
+          <div class="formula-block">
+            <div>Hukum Henry: [CO₂(aq)] = kH × P_CO₂(g)</div>
+            <div class="formula-caption">Konstanta Henry (kH) air laut pada 28°C ≈ 0.034 mol/(L·atm). Kenaikan P_CO₂ memaksa molekul gas CO₂ berdifusi masuk ke kolom air laut.</div>
+          </div>
+          <div class="metric-grid">
+            <div class="metric-box">
+              <div class="metric-label">Tekanan Parsial P_CO₂</div>
+              <div class="metric-val coral">${state.pCO2} <span class="metric-unit">ppm</span></div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">CO₂ Terlarut [CO₂(aq)]</div>
+              <div class="metric-val ochre">${state.henryAqCO2.toFixed(1)} <span class="metric-unit">µM</span></div>
+            </div>
+          </div>
+        `;
+        right.innerHTML = `
+          <span class="tag-pill">ANALISIS SUMBER EMISI PESISIR</span>
+          <h2 class="card-h2">Simulasi Fluks Difusi Antarmuka Udara-Laut</h2>
+          <p class="card-desc">
+            Ubah intensitas aktivitas emisi di pesisir untuk mengamati perubahan laju difusi molekul CO₂ dari atmosfer ke permukaan laut:
+          </p>
+          <div class="control-group">
+            <div class="control-header">
+              <span>Konsentrasi CO₂ Atmosfer Pesisir</span>
+              <span>${state.pCO2} ppm</span>
+            </div>
+            <input type="range" min="380" max="750" value="${state.pCO2}"
+              oninput="state.pCO2 = parseInt(this.value); state.henryAqCO2 = +(state.pCO2 * 0.0342).toFixed(1); renderPanels();" />
+          </div>
+          <div class="btn-row">
+            <button class="action-btn secondary" onclick="state.pCO2=410; state.henryAqCO2=14.0; renderPanels();">Pesisir Alami (410 ppm)</button>
+            <button class="action-btn" onclick="state.pCO2=620; state.henryAqCO2=21.2; renderPanels();">Kawasan Dermaga (620 ppm)</button>
+          </div>
+          <div class="formula-block">
+            <div>Dampak Kehilangan Sabuk Mangrove</div>
+            <div class="formula-caption">Ekosistem mangrove menyerap karbon biru hingga 4x lebih besar dibanding hutan daratan. Hilangnya mangrove mempercepat akumulasi CO₂ lokal.</div>
+          </div>
+        `;
+      } else if (state.phase === 4) {
+        const isAcidic = state.labPH < 7.75;
+        hwMeta.textContent = `Mode Tablet Lab | Qsp: ${state.qspValue.toFixed(2)} vs Ksp: ${state.kspValue.toFixed(2)}`;
+        ped.innerHTML = `<strong>Fase 4 (Jembatan Makro-Submikro-Simbolik):</strong> Visualisasi tumbukan partikel ion & pergeseran Asas Le Chatelier.`;
+        left.innerHTML = `
+          <span class="tag-pill">FASE 4 · TABLET LABORATORIUM KIMIA</span>
+          <h2 class="card-h2">Simulasi Sub-Mikroskopis & Asas Le Chatelier</h2>
+          <p class="card-desc">
+            Gas CO₂ terlarut bereaksi dengan H₂O membentuk asam karbonat (H₂CO₃) yang terurai menjadi ion hidrogen (<strong>H⁺</strong>). Ion H⁺ yang berlebih mengikat ion karbonat (<strong>CO₃²⁻</strong>) menjadi bikarbonat (HCO₃⁻).
+          </p>
+          <div class="formula-block">
+            <div>1. CO₂(aq) + H₂O(l) ⇌ H₂CO₃(aq) ⇌ H⁺(aq) + HCO₃⁻(aq)</div>
+            <div>2. H⁺(aq) + CO₃²⁻(aq) ⇌ HCO₃⁻(aq)   (K ≈ 10¹⁰)</div>
+            <div>3. CaCO₃(s) ⇌ Ca²⁺(aq) + CO₃²⁻(aq)   (Bergeser ke Kanan!)</div>
+            <div class="formula-caption">Karena [CO₃²⁻] dikuras oleh ion H⁺, hasil kali kelarutan Qsp &lt; Ksp sehingga kerangka CaCO₃(s) larut.</div>
+          </div>
+          <div class="metric-grid">
+            <div class="metric-box">
+              <div class="metric-label">Status Kesetimbangan</div>
+              <div class="metric-val ${isAcidic ? 'coral' : 'emerald'}">${isAcidic ? 'Qsp < Ksp' : 'Qsp > Ksp'}</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">Arah Pergeseran Reaksi</div>
+              <div class="metric-val ${isAcidic ? 'ochre' : 'emerald'}">${isAcidic ? 'Ke Kanan (Larut)' : 'Ke Kiri (Endap)'}</div>
+            </div>
+          </div>
+        `;
+        right.innerHTML = `
+          <span class="tag-pill ochre">MANIPULATOR KESETIMBANGAN ION</span>
+          <h2 class="card-h2">Uji Interaktif pH & Konsentrasi Karbonat</h2>
+          <p class="card-desc">
+            Gunakan slider atau celupkan sensor pH fisik ESP32 ke larutan uji asam/basa untuk melihat pergeseran kesetimbangan CaCO₃(s) secara langsung:
+          </p>
+          <div class="control-group">
+            <div class="control-header">
+              <span>Input pH Sampel Air Laut (Sensor pH-4502C)</span>
+              <span>pH ${state.labPH.toFixed(2)}</span>
+            </div>
+            <input type="range" min="710" max="830" value="${Math.round(state.labPH * 100)}"
+              oninput="state.labPH = this.value / 100; state.qspValue = +(0.35 + (state.labPH - 7.1)*0.65).toFixed(2); renderPanels();" />
+          </div>
+          <div class="btn-row">
+            <button class="action-btn" onclick="state.labPH=7.35; state.qspValue=0.52; renderPanels();">
+              Sampel Asam (pH 7.35)
+            </button>
+            <button class="action-btn emerald" onclick="state.labPH=8.15; state.qspValue=1.04; renderPanels();">
+              Sampel Normal (pH 8.15)
+            </button>
+          </div>
+          <div class="formula-block">
+            <div>Diagnosis Kognitif Two-Tier</div>
+            <div class="formula-caption">Mengoreksi miskonsepsi bahwa asam "melelehkan" karang secara langsung; pelarutan terjadi akibat pergeseran kesetimbangan ion CO₃²⁻.</div>
+          </div>
+        `;
+      } else {
+        hwMeta.textContent = `Kenop Biorock: ${state.biorockVoltage.toFixed(2)} V DC | Bulan ke-${state.timelapseMonth}`;
+        ped.innerHTML = `<strong>Fase 5 & 6 (Rekayasa Restorasi):</strong> Fotosintesis lamun menyerap CO₂(aq) & elektrolisis katoda Biorock mengendapkan CaCO₃(s).`;
+        left.innerHTML = `
+          <span class="tag-pill emerald">FASE 5 & 6 · RESTORASI BIOROCK & PADANG LAMUN</span>
+          <h2 class="card-h2">Akresi Mineral Elektrolisis & Time-Lapse 6 Bulan</h2>
+          <p class="card-desc">
+            Kombinasikan penanaman <strong>Padang Lamun (Enhalus acoroides)</strong> untuk menyerap CO₂ terlarut dengan struktur kubah baja <strong>Biorock</strong> berarus searah tegangan rendah untuk mempercepat pengendapan aragonit.
+          </p>
+          <div class="formula-block">
+            <div>Katoda (-): 2H₂O(l) + 2e⁻ → H₂(g)↑ + 2OH⁻(aq)</div>
+            <div>Presipitasi: Ca²⁺(aq) + HCO₃⁻(aq) + OH⁻(aq) → CaCO₃(s)↓ + H₂O(l)</div>
+            <div class="formula-caption">Produksi ion OH⁻ di sekitar katoda meningkatkan pH lokal sehingga Qsp &gt; Ksp dan aragonit mengendap kembali.</div>
+          </div>
+          <div class="metric-grid">
+            <div class="metric-box">
+              <div class="metric-label">pH Mikro-Habitat Pulih</div>
+              <div class="metric-val emerald">${state.restoredPH.toFixed(2)} <span class="metric-unit">Optimal</span></div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">Indeks Kesehatan Karang</div>
+              <div class="metric-val emerald">${state.reefHealth}% <span class="metric-unit">Pulih</span></div>
+            </div>
+          </div>
+        `;
+        right.innerHTML = `
+          <span class="tag-pill ochre">KENOP POTENSIOMETER BIOROCK (ESP32)</span>
+          <h2 class="card-h2">Penyetelan Voltase Katoda & Evaluasi 6 Bulan</h2>
+          <p class="card-desc">
+            Putar kenop potensiometer kuningan pada konsol ESP32 pada rentang optimal <strong>1.2V – 1.8V DC</strong> (voltase berlebih memicu penggetasan hidrogen):
+          </p>
+          <div class="control-group">
+            <div class="control-header">
+              <span>Voltase Elektrolisis Biorock (ADC GPIO 32)</span>
+              <span>${state.biorockVoltage.toFixed(2)} V DC</span>
+            </div>
+            <input type="range" min="80" max="260" value="${Math.round(state.biorockVoltage * 100)}"
+              oninput="state.biorockVoltage = this.value / 100; renderPanels();" />
+          </div>
+          <div class="control-group">
+            <div class="control-header">
+              <span>Simulasi Time-Lapse Pemulihan Ekosistem</span>
+              <span>Bulan ke-${state.timelapseMonth}</span>
+            </div>
+            <input type="range" min="0" max="6" value="${state.timelapseMonth}"
+              oninput="state.timelapseMonth = parseInt(this.value); state.restoredPH = +(7.35 + state.timelapseMonth * 0.128).toFixed(2); state.reefHealth = Math.round(34 + state.timelapseMonth * 10); renderPanels();" />
+          </div>
+          <div class="btn-row">
+            <button class="action-btn emerald" onclick="state.seagrassPlots += 4; renderPanels();">
+              Tanam Bibit Lamun (${state.seagrassPlots} Rumpun)
+            </button>
+          </div>
+        `;
+      }
+    }
+
+    // Web-Serial API connection to physical ESP32 controller
+    async function connectWebSerial() {
+      if (!('serial' in navigator)) {
+        alert('Peramban ini mendukung simulasi langsung. Gunakan Google Chrome atau Microsoft Edge untuk menautkan dongle USB ESP32 melalui Web-Serial API.');
+        return;
+      }
+      try {
+        const port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 115200 });
+        document.getElementById('hwStatusText').textContent = 'Konsol ESP32 Terhubung (USB Serial)';
+      } catch (e) {
+        console.log('Serial connection cancelled:', e);
+      }
+    }
+
+    // --- RICH ANTI-SLOP CANVAS RENDERER FOR EACH PHASE ---
+    function drawRoundedRect(ctx, x, y, w, h, r, fillStyle) {
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+      ctx.fillStyle = fillStyle;
+      ctx.fill();
+    }
+
+    function drawBranchingCoral(ctx, cx, cy, scale, bleachedRatio, time) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(scale, scale);
+
+      // Base limestone rock
+      ctx.fillStyle = '#2B2825';
+      ctx.beginPath();
+      ctx.ellipse(0, 18, 95, 28, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Coral branches (interpolate between bleached warm ivory #EBE6DC and healthy terracotta #E05A47)
+      const branches = [
+        { x: 0, y: 0, ang: -Math.PI / 2, len: 95, w: 18 },
+        { x: -15, y: -25, ang: -Math.PI / 2 - 0.45, len: 75, w: 14 },
+        { x: 18, y: -20, ang: -Math.PI / 2 + 0.42, len: 78, w: 14 },
+        { x: -38, y: -48, ang: -Math.PI / 2 - 0.72, len: 58, w: 11 },
+        { x: 42, y: -45, ang: -Math.PI / 2 + 0.68, len: 60, w: 11 },
+        { x: -8, y: -55, ang: -Math.PI / 2 - 0.18, len: 52, w: 10 },
+        { x: 12, y: -58, ang: -Math.PI / 2 + 0.22, len: 50, w: 10 },
+      ];
+
+      branches.forEach((b, idx) => {
+        const sway = Math.sin(time * 1.5 + idx) * 2;
+        const ex = b.x + Math.cos(b.ang) * b.len + sway;
+        const ey = b.y + Math.sin(b.ang) * b.len;
+
+        ctx.strokeStyle = bleachedRatio > 0.5 ? '#E8E3D9' : '#D95D39';
+        ctx.lineWidth = b.w;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(b.x, b.y);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+
+        // Tip polyp highlight
+        ctx.fillStyle = bleachedRatio > 0.5 ? '#F7F4EE' : '#F59E0B';
+        ctx.beginPath();
+        ctx.arc(ex, ey, b.w * 0.48, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.restore();
+    }
+
+    function renderScene() {
+      state.time += 0.016;
+      const t = state.time;
+
+      if (state.phase === 1) {
+        // PHASE 1: Warm Tropical Archipelago Lagoon & Research Vessel KM Maritim I (No Neon Blue!)
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, '#102822');   // Deep emerald-kelp lagoon
+        grad.addColorStop(0.55, '#194238'); // Mid jade reef water
+        grad.addColorStop(1, '#263B32');   // Warm sandy seabed transition
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
+
+        // Subtle warm sunlight shafts from top left
+        ctx.fillStyle = 'rgba(245, 225, 185, 0.04)';
+        for (let i = 0; i < 4; i++) {
+          ctx.beginPath();
+          ctx.moveTo(W * 0.25 + i * 160, 0);
+          ctx.lineTo(W * 0.35 + i * 160, 0);
+          ctx.lineTo(W * 0.50 + i * 210, H);
+          ctx.lineTo(W * 0.30 + i * 210, H);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // Seabed Bathymetry Contour & Coral Zone vs Sandy Eco-Mooring Zone in Center
+        const cx = W * 0.50;
+        const cy = H * 0.52;
+
+        // Fragile Coral Reef Zone (Left-Center Circle)
+        ctx.fillStyle = 'rgba(217, 93, 57, 0.14)';
+        ctx.beginPath();
+        ctx.arc(cx - 115, cy + 45, 110, 0, Math.PI * 2);
+        ctx.fill();
+        drawBranchingCoral(ctx, cx - 115, cy + 75, 0.72, 0.2, t);
+
+        // Safe Sandy Eco-Mooring Buoy Zone (Right-Center Circle)
+        ctx.fillStyle = 'rgba(22, 163, 74, 0.18)';
+        ctx.beginPath();
+        ctx.arc(cx + 125, cy - 35, 95, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Floating Eco-Mooring Buoy
+        const bx = cx + 125;
+        const by = cy - 35 + Math.sin(t * 2.2) * 4;
+        ctx.fillStyle = '#16A34A';
+        ctx.beginPath();
+        ctx.arc(bx, by, 22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#FAF8F5';
+        ctx.beginPath();
+        ctx.arc(bx, by, 9, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Mooring line from ship to active target
+        const shipPosX = cx - 10;
+        const shipPosY = cy - 115 + Math.sin(t * 1.8) * 3;
+        const targetX = state.anchorMode === 'buoy' ? bx : cx - 115;
+        const targetY = state.anchorMode === 'buoy' ? by : cy + 45;
+
+        ctx.strokeStyle = state.anchorMode === 'buoy' ? '#22C55E' : '#EF4444';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([8, 6]);
+        ctx.beginPath();
+        ctx.moveTo(shipPosX, shipPosY);
+        ctx.lineTo(targetX, targetY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Research Vessel KM MARITIM I (Top-down / 3/4 architectural vessel graphic)
+        ctx.save();
+        ctx.translate(shipPosX, shipPosY);
+        ctx.rotate((state.shipHeading * Math.PI) / 180);
+
+        // Wake ripples
+        ctx.strokeStyle = 'rgba(250, 248, 245, 0.18)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-28, 65);
+        ctx.lineTo(-55, 135);
+        ctx.moveTo(28, 65);
+        ctx.lineTo(55, 135);
+        ctx.stroke();
+
+        // Hull
+        ctx.fillStyle = '#F5F2EB';
+        ctx.beginPath();
+        ctx.moveTo(0, -78);
+        ctx.bezierCurveTo(38, -42, 40, 25, 30, 72);
+        ctx.lineTo(-30, 72);
+        ctx.bezierCurveTo(-40, 25, -38, -42, 0, -78);
+        ctx.closePath();
+        ctx.fill();
+
+        // Deck & Cabin in Warm Terracotta & Charcoal
+        drawRoundedRect(ctx, -22, -28, 44, 76, 10, '#272421');
+        drawRoundedRect(ctx, -16, -16, 32, 34, 6, '#D95D39');
+        ctx.restore();
+
+        // Clean Borderless Floating Labels on Canvas
+        drawRoundedRect(ctx, cx + 45, cy - 102, 220, 42, 12, 'rgba(28, 25, 23, 0.88)');
+        ctx.fillStyle = '#22C55E';
+        ctx.font = '600 13px PoppinsLocal, Poppins';
+        ctx.fillText('Pelampung Tambat (+50 Poin)', cx + 60, cy - 76);
+
+        drawRoundedRect(ctx, cx - 235, cy + 115, 245, 42, 12, 'rgba(28, 25, 23, 0.88)');
+        ctx.fillStyle = '#F59E0B';
+        ctx.font = '600 13px PoppinsLocal, Poppins';
+        ctx.fillText('Zona Terumbu CaCO3 (Larangan)', cx - 220, cy + 141);
+
+      } else if (state.phase === 2) {
+        // PHASE 2: Underwater Reef Floor & Chemical Scanner (Warm Deep Kelp Green & Limestone)
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, '#132A23');
+        grad.addColorStop(0.7, '#1D3E35');
+        grad.addColorStop(1, '#2D2924');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
+
+        // Seabed limestone ridge
+        ctx.fillStyle = '#23201C';
+        ctx.beginPath();
+        ctx.ellipse(W * 0.5, H * 0.82, 420, 110, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const cx = W * 0.50;
+        const cy = H * 0.60;
+        const isBleached = state.seawaterPH < 7.75;
+        drawBranchingCoral(ctx, cx, cy, 1.45, isBleached ? 0.9 : 0.1, t);
+
+        // Optical Chemical Scanner Reticle (Warm Terracotta & Amber, Zero Neon Cyan!)
+        if (state.scanActive) {
+          const rx = cx;
+          const ry = cy - 65;
+          ctx.strokeStyle = isBleached ? '#D95D39' : '#22C55E';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.arc(rx, ry, 115, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Horizontal scanning beam line
+          const scanY = ry - 85 + ((Math.sin(t * 2.4) + 1) * 0.5) * 170;
+          ctx.strokeStyle = 'rgba(245, 158, 11, 0.75)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(rx - 95, scanY);
+          ctx.lineTo(rx + 95, scanY);
+          ctx.stroke();
+
+          // Floating Borderless Readout Pill above Coral
+          drawRoundedRect(ctx, rx - 165, ry - 180, 330, 52, 14, 'rgba(28, 25, 23, 0.92)');
+          ctx.fillStyle = '#FAF8F5';
+          ctx.font = '600 13px PoppinsLocal, Poppins';
+          ctx.fillText(`Target: Acropora sp. (${isBleached ? 'Memutih / Rapuh' : 'Sehat'})`, rx - 145, ry - 157);
+          ctx.fillStyle = isBleached ? '#F59E0B' : '#22C55E';
+          ctx.font = '500 12px PoppinsLocal, Poppins';
+          ctx.fillText(`pH Lokal: ${state.seawaterPH.toFixed(2)}  |  [CO3 2-]: ${state.co3Conc} uM  |  Ω: ${state.omegaArag}`, rx - 145, ry - 138);
+        }
+
+      } else if (state.phase === 3) {
+        // PHASE 3: Coastal Harbor Emission & Henry's Law Gas Diffusion (Warm Sunset Amber & Sea Interface)
+        const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.54);
+        skyGrad.addColorStop(0, '#2B1B17');
+        skyGrad.addColorStop(0.6, '#5A3224');
+        skyGrad.addColorStop(1, '#8C4D32');
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, 0, W, H * 0.54);
+
+        const seaGrad = ctx.createLinearGradient(0, H * 0.54, 0, H);
+        seaGrad.addColorStop(0, '#1B3F36');
+        seaGrad.addColorStop(1, '#112620');
+        ctx.fillStyle = seaGrad;
+        ctx.fillRect(0, H * 0.54, W, H * 0.46);
+
+        const horizonY = H * 0.54;
+        const cx = W * 0.50;
+
+        // Coastal Harbor Silhouette & Diesel Boat on Horizon
+        ctx.fillStyle = '#1C1917';
+        ctx.fillRect(cx - 240, horizonY - 48, 170, 48);
+        ctx.fillRect(cx - 190, horizonY - 88, 24, 40); // Genset chimney
+
+        // Trawler boat on right
+        ctx.beginPath();
+        ctx.moveTo(cx + 60, horizonY);
+        ctx.lineTo(cx + 210, horizonY);
+        ctx.lineTo(cx + 190, horizonY - 28);
+        ctx.lineTo(cx + 80, horizonY - 28);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillRect(cx + 115, horizonY - 58, 45, 30);
+
+        // CO2 Smoke Plumes & Partial Pressure P_CO2 Molecules in Air
+        ctx.fillStyle = 'rgba(28, 25, 23, 0.35)';
+        for (let i = 0; i < 6; i++) {
+          ctx.beginPath();
+          ctx.arc(cx - 178 + i * 22, horizonY - 110 - i * 18, 22 + i * 6, 0, Math.PI * 2);
+          ctx.arc(cx + 140 + i * 18, horizonY - 85 - i * 16, 18 + i * 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Animated Henry's Law Diffusion Arrows (CO2(g) -> CO2(aq))
+        for (let i = -2; i <= 2; i++) {
+          const ax = cx + i * 75;
+          const ay = horizonY - 35 + ((t * 28 + i * 15) % 70);
+          ctx.fillStyle = '#D95D39';
+          ctx.beginPath();
+          ctx.arc(ax, ay, 16, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = '700 10px PoppinsLocal, Poppins';
+          ctx.fillText('CO2', ax - 11, ay + 4);
+        }
+
+        // Interface Banner
+        drawRoundedRect(ctx, cx - 195, horizonY + 95, 390, 58, 14, 'rgba(28, 25, 23, 0.92)');
+        ctx.fillStyle = '#FAF8F5';
+        ctx.font = '600 14px PoppinsLocal, Poppins';
+        ctx.fillText(`Difusi Antarmuka Laut: [CO2(aq)] = ${state.henryAqCO2.toFixed(1)} uM`, cx - 172, horizonY + 120);
+        ctx.fillStyle = '#D97706';
+        ctx.font = '500 12px PoppinsLocal, Poppins';
+        ctx.fillText(`Tekanan Parsial P_CO2 Atmosfer: ${state.pCO2} ppm`, cx - 172, horizonY + 141);
+
+      } else if (state.phase === 4) {
+        // PHASE 4: Tablet Lab Sub-Microscopic Particle Simulation (Editorial Warm Stone & Charcoal)
+        ctx.fillStyle = '#EAE5DC';
+        ctx.fillRect(0, 0, W, H);
+
+        // Central Sub-Microscopic Reaction Vessel Viewport
+        const vx = W * 0.50 - 210;
+        const vy = H * 0.16;
+        const vw = 420;
+        const vh = H * 0.68;
+
+        drawRoundedRect(ctx, vx, vy, vw, vh, 26, '#1C1917');
+
+        // Solid CaCO3 Crystal Lattice at bottom of reaction chamber
+        const latticeY = vy + vh - 85;
+        drawRoundedRect(ctx, vx + 24, latticeY, vw - 48, 62, 14, '#2E2A27');
+        ctx.fillStyle = '#FAF8F5';
+        ctx.font = '600 13px PoppinsLocal, Poppins';
+        ctx.fillText('Kisi Kristal Aragonit Padat CaCO3(s)', vx + 88, latticeY + 28);
+        ctx.fillStyle = state.labPH < 7.75 ? '#D95D39' : '#22C55E';
+        ctx.font = '500 12px PoppinsLocal, Poppins';
+        ctx.fillText(
+          state.labPH < 7.75 ? 'Status: Kisi Larut (Ion CO3 2- Dikuras H+)' : 'Status: Kisi Stabil & Mengendap (Qsp > Ksp)',
+          vx + 72, latticeY + 48
+        );
+
+        // Render colliding ions inside the reaction vessel
+        const colors = {
+          'CO2': '#D95D39',
+          'H+': '#EF4444',
+          'HCO3-': '#D97706',
+          'CO32-': '#16A34A',
+          'Ca2+': '#78716C'
+        };
+
+        particles.forEach((p) => {
+          p.x += p.vx;
+          p.y += p.vy;
+          if (p.x < 0.08 || p.x > 0.92) p.vx *= -1;
+          if (p.y < 0.10 || p.y > 0.76) p.vy *= -1;
+
+          const px = vx + p.x * vw;
+          const py = vy + p.y * vh;
+
+          ctx.fillStyle = colors[p.type] || '#D95D39';
+          ctx.beginPath();
+          ctx.arc(px, py, p.r, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = '600 10px PoppinsLocal, Poppins';
+          ctx.fillText(p.type, px - p.r * 0.65, py + 3);
+        });
+
+      } else {
+        // PHASE 5 & 6: Restored Emerald Seagrass Meadow & Biorock Mineral Accretion Dome
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, '#0F2E24');
+        grad.addColorStop(0.65, '#164A3B');
+        grad.addColorStop(1, '#26382E');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
+
+        const cx = W * 0.50;
+        const cy = H * 0.66;
+
+        // Seagrass blades (Enhalus acoroides) on left and right absorbing CO2
+        ctx.strokeStyle = '#22C55E';
+        ctx.lineWidth = 6;
+        ctx.lineCap = 'round';
+        for (let i = -8; i <= 8; i++) {
+          if (Math.abs(i) < 3) continue;
+          const gx = cx + i * 28;
+          const gy = cy + 65;
+          const sway = Math.sin(t * 2 + i) * 12;
+          ctx.beginPath();
+          ctx.moveTo(gx, gy);
+          ctx.quadraticCurveTo(gx + sway * 0.5, gy - 55, gx + sway, gy - 110);
+          ctx.stroke();
+        }
+
+        // Biorock Steel Cathode Dome Structure in Center
+        ctx.strokeStyle = state.timelapseMonth >= 3 ? '#F5F2EB' : '#A8A29E';
+        ctx.lineWidth = 4 + state.timelapseMonth * 1.1; // Thicker white CaCO3 accretion over months!
+        ctx.beginPath();
+        ctx.arc(cx, cy + 50, 145, Math.PI, 0);
+        ctx.stroke();
+
+        // Crossbars of Biorock dome
+        ctx.beginPath();
+        ctx.moveTo(cx - 125, cy - 22);
+        ctx.lineTo(cx + 125, cy - 22);
+        ctx.moveTo(cx, cy - 95);
+        ctx.lineTo(cx, cy + 50);
+        ctx.stroke();
+
+        // Thriving Coral Colonies on Biorock Dome
+        const growthScale = 0.65 + state.timelapseMonth * 0.11;
+        drawBranchingCoral(ctx, cx, cy - 22, growthScale, 0.0, t);
+
+        // Rising H2 & O2 bubbles from Biorock & Seagrass
+        ctx.fillStyle = 'rgba(250, 248, 245, 0.45)';
+        for (let b = 0; b < 14; b++) {
+          const bx = cx - 160 + b * 25;
+          const by = cy - ((t * 45 + b * 32) % 220);
+          ctx.beginPath();
+          ctx.arc(bx, by, 4 + (b % 3), 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Floating Biorock Telemetry Pill
+        drawRoundedRect(ctx, cx - 185, cy - 235, 370, 56, 14, 'rgba(28, 25, 23, 0.92)');
+        ctx.fillStyle = '#22C55E';
+        ctx.font = '600 13px PoppinsLocal, Poppins';
+        ctx.fillText(`Elektrolisis Katoda Biorock: ${state.biorockVoltage.toFixed(2)} V DC (Optimal)`, cx - 162, cy - 211);
+        ctx.fillStyle = '#FAF8F5';
+        ctx.font = '500 12px PoppinsLocal, Poppins';
+        ctx.fillText(`Time-Lapse Bulan ke-${state.timelapseMonth}  |  pH Pulih: ${state.restoredPH.toFixed(2)}  |  Tutupan: ${state.reefHealth}%`, cx - 162, cy - 190);
+      }
+
+      requestAnimationFrame(renderScene);
+    }
+
+    setPhase(state.phase);
+    requestAnimationFrame(renderScene);
+
+    function toggleProtoModal(show) {
+      const m = document.getElementById('protoModal');
+      if (m) m.classList.toggle('open', show);
+    }
+
+    // Handle ?mode=prototype or ?mode=teaser from QR Code scans!
+    const modeParam = params.get('mode');
+    if (modeParam === 'prototype') {
+      window.addEventListener('DOMContentLoaded', () => toggleProtoModal(true));
+      setTimeout(() => toggleProtoModal(true), 150);
+    } else if (modeParam === 'teaser') {
+      let teaserPhase = 1;
+      setInterval(() => {
+        teaserPhase = (teaserPhase % 5) + 1;
+        setPhase(teaserPhase);
+      }, 4200);
+    }
+  </script>
+
+  <!-- INTERACTIVE PROTOTYPE & 3D HARDWARE BLUEPRINT MODAL -->
+  <div class="proto-modal" id="protoModal">
+    <div class="proto-box interactive">
+      <div class="proto-header">
+        <div>
+          <span class="tag-pill">LAMPIRAN 3 & 4 · PROTOTIPE & BLUEPRINT 3D</span>
+          <h2 class="card-h2" style="margin-top:8px;">Aragonica Field Deck (MCP Blender 3D) & Arsitektur Sensor pH IoT</h2>
+        </div>
+        <button class="action-btn" style="flex:0 0 auto;" onclick="toggleProtoModal(false)">
+          Tutup & Mainkan Simulasi
+        </button>
+      </div>
+      <div class="proto-grid">
+        <div class="proto-item">
+          <img src="assets/L4_1_3D_Model_Perspective_Render.jpg" alt="3D Model Aragonica Field Deck" onerror="this.src='../lampiran_assets/L4_1_3D_Model_Perspective_Render.png'" />
+          <h4>1. Render Perspektif 3D Konsol & Sensor pH</h4>
+          <p>Desain unibody ergonomis two-tone (Sandstone PLA & Basalt Charcoal) dengan OLED 0.96 inci, kenop kuningan Biorock, dan sensor pH-4502C.</p>
+        </div>
+        <div class="proto-item">
+          <img src="assets/L4_2_Blueprint_Annotated.jpg" alt="Cetak Biru Rekayasa" onerror="this.src='../lampiran_assets/L4_2_Blueprint_Annotated.png'" />
+          <h4>2. Cetak Biru Rekayasa (Annotated CAD Blueprint)</h4>
+          <p>Spesifikasi 8 komponen utama dengan bentang ergonomis 185.0 mm dan biaya perakitan FabLab Rp143.000.</p>
+        </div>
+        <div class="proto-item">
+          <img src="assets/L4_3_Sensor_Probe_Exploded_Detail.jpg" alt="Detail Sensor pH" onerror="this.src='../lampiran_assets/L4_3_Sensor_Probe_Exploded_Detail.png'" />
+          <h4>3. Detail Elektroda Kaca pH & Dongle ESP32</h4>
+          <p>Elektroda kaca koaksial BNC untuk pengujian sampel air laut nyata beserta dongle penerima ESP-NOW 2.4 GHz.</p>
+        </div>
+        <div class="proto-item">
+          <img src="assets/L4_4_Circuit_Schematic_Diagram.jpg" alt="Skema Elektronika" onerror="this.src='../lampiran_assets/L4_4_Circuit_Schematic_Diagram.png'" />
+          <h4>4. Skema Sirkuit Elektronika & Pinout ESP32</h4>
+          <p>Pemetaan pin ADC/GPIO/I2C mikrokontroler ESP32-WROOM-32D dan arsitektur ruang kelas kolaboratif tanpa internet.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
